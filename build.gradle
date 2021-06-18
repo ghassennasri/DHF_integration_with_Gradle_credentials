@@ -1,0 +1,90 @@
+import com.marklogic.mgmt.ManageClient
+import com.marklogic.mgmt.ManageConfig
+import com.marklogic.mgmt.admin.AdminConfig
+import com.marklogic.mgmt.admin.AdminManager
+import com.marklogic.rest.util.RestConfig
+import com.marklogic.rest.util.RestTemplateUtil
+import org.springframework.web.client.RestTemplate
+
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url "https://plugins.gradle.org/m2/" }
+        jcenter()
+        gradlePluginPortal()
+    }
+
+    dependencies {
+        classpath "net.saliman:gradle-properties-plugin:1.5.1"
+        classpath "com.marklogic:ml-data-hub:5.4.4"
+        classpath 'nu.studer:gradle-credentials-plugin:2.1'
+    }
+}
+
+apply plugin: "net.saliman.properties"
+apply plugin: "com.marklogic.ml-data-hub"
+apply plugin: 'nu.studer.credentials'
+apply plugin: 'java'
+
+repositories {
+    mavenLocal()
+    maven { url "https://developer.marklogic.com/maven2/" }
+    jcenter()
+}
+
+task credentialInitializer(type: com.marklogic.gradle.task.MarkLogicTask) {
+    description = "Task setting passwords from Credential Gradle plugin before any data hub task"
+    doLast {
+        //Update AdminManager config with mlAdminPassword
+        AdminManager adminManager = getAdminManager();
+        AdminConfig adminConfig = getAdminManager().getAdminConfig();
+        adminConfig.setPassword(credentials.mlPassword);
+        RestTemplate adminRestTemplate = RestTemplateUtil.newRestTemplate(adminConfig);
+        adminManager.restTemplate = adminRestTemplate;
+        //Update AppConfig config with mlRestAdminPassword
+        getAppConfig().setRestAdminPassword(credentials.mlPassword);
+        //Update AppConfig config with mlAppServicesPassword
+        getAppConfig().setAppServicesPassword(credentials.mlPassword);
+        //Update ManageClient config with mlManagePassword
+        ManageClient manageClient = getManageClient();
+        ManageConfig config = getManageClient().getManageConfig();
+        config.setPassword(credentials.mlPassword)
+        //Update ManageClient config with mlSecurityPassword
+        config.setSecurityPassword(credentials.mlPassword);
+        //Update spring RestTemplate issuing HTTP calls to /manage/v2 endpoint
+        RestTemplate manageRestTemplate = RestTemplateUtil.newRestTemplate(getManageClient().getManageConfig());
+        manageClient.restTemplate = manageRestTemplate;
+        String securityUsername = config.getSecurityUsername();
+        if (securityUsername != null && securityUsername.trim().length() > 0 && !securityUsername.equals(config.getUsername())) {
+            println format("Initializing separate connection to Manage API with user '%s' that should have the 'manage-admin' and 'security' roles", securityUsername);
+
+            RestConfig rc = new RestConfig(config.getHost(), config.getPort(), securityUsername, config.getSecurityPassword());
+            rc.setScheme(config.getScheme());
+            rc.setConfigureSimpleSsl(config.isConfigureSimpleSsl());
+            rc.setHostnameVerifier(config.getHostnameVerifier());
+
+            if (config.getSecuritySslContext() != null) {
+                rc.setSslContext(config.getSecuritySslContext());
+            } else {
+                rc.setSslContext(config.getSslContext());
+            }
+
+            manageClient.securityUserRestTemplate = RestTemplateUtil.newRestTemplate(rc);
+        } else {
+            manageClient.securityUserRestTemplate = manageRestTemplate;
+        }
+
+        //update hubConfig extension with updated fields
+        hubConfig.setMlPassword(credentials.mlPassword);
+        hubConfig.setAdminConfig(adminConfig)
+        hubConfig.setAdminManager(adminManager)
+        hubConfig.setManageConfig(config)
+        hubConfig.setManageClient(manageClient)
+        hubConfig.setAppConfig(getAppConfig())
+
+    }
+}
+//make all tasks including mlDeploy depend on credentialInitializer task
+tasks.matching { it.name != 'credentialInitializer' }.all { Task task ->
+    task.dependsOn credentialInitializer
+}

@@ -1,0 +1,6 @@
+src/main/ml-config
+src/main/entity-config
+
+# Project exclude paths
+/.gradle/
+/build/

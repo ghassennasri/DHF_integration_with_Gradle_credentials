@@ -1,0 +1,8 @@
+{
+  "name" : "Diagnoses",
+  "steps" : {
+    "1" : {
+      "stepId" : "DiagnosesCore-ingestion"
+    }
+  }
+}

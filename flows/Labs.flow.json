@@ -1,0 +1,8 @@
+{
+  "name" : "Labs",
+  "steps" : {
+    "1" : {
+      "stepId" : "LabsCore-ingestion"
+    }
+  }
+}

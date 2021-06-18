@@ -1,0 +1,11 @@
+{
+  "name" : "Patients",
+  "steps" : {
+    "1" : {
+      "stepId" : "Patient-Core-ingestion"
+    },
+    "2" : {
+      "stepId" : "PopulateAdmissions-custom"
+    }
+  }
+}

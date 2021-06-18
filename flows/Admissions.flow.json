@@ -1,0 +1,11 @@
+{
+  "name" : "Admissions",
+  "steps" : {
+    "1" : {
+      "stepId" : "AdmissionsCore-ingestion"
+    },
+    "2" : {
+      "stepId" : "BuildAdmissions-custom"
+    }
+  }
+}
